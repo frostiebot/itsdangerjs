@@ -1,46 +1,70 @@
-import Json from './json'
+/**
+ * Base Serializer class and factory
+ * 
+ * @module serializer
+ */
+
+import Json from './_json'
 
 import { Signer } from './signer'
 
-export class _Serializer {
-  constructor(secretKey, salt = 'itsdangerjs', { serializer = Json, signer = Signer }) {
-    this.secretKey = secretKey
-    this.salt = salt
+import { BadPayload } from './error'
 
+/**
+ * Serializer Options
+ * @typedef {object} SerializerOptions
+ * @property {string} [salt="itsdanger.Serializer"] - Value to salt signature
+ * @property {import('./_json').SerializerLike} [serializer=Json] - Signed value delimiter
+ * @property {Signer} [signer=Signer] - Method for deriving signing secret
+ * @property {import('./signer').SignerOptions} [signerOptions] - Options to pass to {@link Signer}
+ */
+
+/**
+ * Base Serializing class for subclassing
+ */
+export class BaseSerializer {
+  /**
+   * @param {string} secretKey
+   * @param {SerializerOptions} [options]
+   */
+  constructor(secretKey, { salt = 'itsdanger.Serializer', serializer = Json, signer = Signer, signerOptions = {} } = {}) {
+    this.secretKey = secretKey
+
+    this.salt = salt
     this.serializer = serializer
+
     this.signer = signer
+    this.signerOptions = signerOptions
   }
 
-  loadPayload(payload, serializer) {
-    if (!serializer)
-      serializer = this.serializer
-
-    try {
-      return serializer.loads(payload)
-    } catch (error) {
-      throw new Error('BadPayload - Could not load the payload because an exception occurred on unserializing the data.')
-    }
+  makeSigner(salt) {
+    salt = salt || this.salt
+    return this.signer(this.secretKey, { ...this.signerOptions, salt })
   }
 
   dumpPayload(obj) {
     return this.serializer.dumps(obj)
   }
 
-  makeSigner(salt) {
-    if (!salt)
-      salt = this.salt
-
-    return this.signer(this.secretKey, salt)
+  loadPayload(payload, serializer) {
+    try {
+      return (serializer || this.serializer).loads(payload)
+    } catch (error) {
+      throw new BadPayload('Could not load the payload because an exception occurred on unserializing the data.', error)
+    }
   }
 
-  dumps(obj, salt) {
-    const payload = this.dumpPayload(obj)
-    return this.makeSigner(salt).sign(payload)
+  dumps(value, salt) {
+    return this.makeSigner(salt).sign(this.dumpPayload(value))
   }
 
-  loads(s, salt) {
-    return this.loadPayload(this.makeSigner(salt).unsign(s))
+  loads(value, salt) {
+    return this.loadPayload(this.makeSigner(salt).unsign(value))
   }
 }
 
-export const Serializer = (secretKey, salt = 'itsdangerjs', serializer = Json, signer = Signer) => new _Serializer(secretKey, salt, { serializer, signer })
+/**
+ * 
+ * @type {(secretKey: string, options?: SerializerOptions) => BaseSerializer}
+ */
+export const Serializer = (secretKey, options) => new BaseSerializer(secretKey, options)

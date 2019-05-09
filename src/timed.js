@@ -1,43 +1,52 @@
-import Json from './json'
+/**
+ * Time-based Signer and Serializer classes + factories
+ */
 
-import {
-  base64encodeNumber,
-  base64decodeNumber,
-} from './encoding'
+import Json from './_json'
+import Time from './_time'
 
-import { _Signer } from './signer'
-import { _Serializer } from './serializer'
+import { BaseSigner } from './signer'
+import { BaseSerializer } from './serializer'
 
-const EPOCH = 1293840000
+import { URLSafeBase64EncodeInt, URLSafeBase64DecodeInt } from './encoding'
+import { BadTimeSignature, SignatureExpired } from './error'
+import { required, rsplit } from './utils'
 
-export class _TimestampSigner extends _Signer {
-  constructor(...args) { super(...args) }
+export class BaseTimestampSigner extends BaseSigner {
+  constructor(secretKey = required('secretKey'), { salt = 'itsdanger.Signer', sep = '.', keyDerivation = 'django-concat', digestMethod = 'sha1', algorithm, time = Time } = {}) {
+    super(secretKey, { salt, sep, keyDerivation, digestMethod, algorithm })
+
+    this.time = time
+  }
 
   getTimestamp() {
-    return Date.now() - EPOCH
+    return this.time.toTimestamp()
   }
 
   timestampToDate(timestamp) {
-    return new Date(timestamp + EPOCH)
+    return this.time.fromTimestamp(timestamp)
   }
 
   sign(value) {
-    const timestamp = base64encodeNumber(this.getTimestamp())
-    return super.sign(`${value}${this.sep}${timestamp}`)
+    return super.sign(`${value}${this.sep}${URLSafeBase64EncodeInt(this.getTimestamp())}`)
   }
 
   unsign(signedValue, maxAge, returnTimestamp = false) {
-    //TODO: Wrap with all the try/catch junk we basically skipped over
     const result = super.unsign(signedValue)
 
-    let [value, timestamp] = result.split(this.sep)
+    if (!result.includes(this.sep)) {
+      throw new BadTimeSignature('timestamp missing', result)
+    }
 
-    timestamp = base64decodeNumber(timestamp)
+    let [value, timestamp] = rsplit(result, this.sep)
+
+    timestamp = URLSafeBase64DecodeInt(timestamp)
 
     if (maxAge) {
       const age = this.getTimestamp() - timestamp
+
       if (age > maxAge) {
-        throw new Error(`SignatureExpired: Signature age ${age} > ${maxAge}`)
+        throw new SignatureExpired(`Signature age ${age} > ${maxAge} seconds`, value, this.timestampToDate(timestamp))
       }
     }
 
@@ -58,20 +67,47 @@ export class _TimestampSigner extends _Signer {
   }
 }
 
-export const TimestampSigner = (secretKey, salt = 'itsdangerjs.Signer', sep = '.', digestMethod = 'sha512', algorithm) => new _TimestampSigner(secretKey, { salt, sep, digestMethod, algorithm })
+/**
+ * 
+ * @param {string} secretKey 
+ * @param {object} options
+ * @param {string} [options.salt=itsdanger.Signer]
+ * @param {string} [options.sep=.]
+ * @param {string} [options.keyDerivation=django-concat]
+ * @param {string} [options.digestMethod=sha1]
+ * @param {function} [options.algorithm=HmacAlgorithm]
+ */
+export const TimestampSigner = function(secretKey, options = {}) { return new BaseTimestampSigner(secretKey, options) }
 
-export class _TimedSerializer extends _Serializer {
-  constructor(...args) { super(...args) }
+export class BaseTimedSerializer extends BaseSerializer {
+  constructor(secretKey = required('secretKey'), { salt = 'itsdanger.Serializer', serializer = Json, signerArgs = {} } = {}) {
+    super(secretKey, { salt, serializer, signer: TimestampSigner, signerArgs })
+  }
 
-  loads(s, maxAge, returnTimestamp = false, salt) {
-    const signer = this.makeSigner(salt)
-    const [value, timestamp] = signer.unsign(s, maxAge, true)
+  loads(signedValue, maxAge, returnTimestamp = false, salt) {
+    const signer = super.makeSigner(salt)
+
+    const [value, timestamp] = signer.unsign(signedValue, maxAge, true)
     const payload = this.loadPayload(value)
+
     if (returnTimestamp) {
       return [payload, timestamp]
     }
+
     return payload
   }
 }
 
-export const TimedSerializer = (secretKey, salt = 'itsdangerjs', serializer = Json, signer = TimestampSigner) => new _TimedSerializer(secretKey, salt, { serializer, signer })
+/**
+ * 
+ * @param {string} secretKey 
+ * @param {object} options
+ * @param {string} [options.salt='itsdanger.Serializer']
+ * @param {function} [options.serializer=Json]
+ * @param {object} [options.signerArgs]
+ * @param {string} [options.signerArgs.sep]
+ * @param {string} [options.signerArgs.keyDerivation]
+ * @param {string} [options.signerArgs.digestMethod]
+ * @param {function} [options.signerArgs.algorithm]
+ */
+export const TimedSerializer = function(secretKey, options = {}) { return new BaseTimedSerializer(secretKey, options) }

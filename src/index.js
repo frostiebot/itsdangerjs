@@ -1,14 +1,17 @@
-import { Serializer } from './serializer'
 import { Signer } from './signer'
+import { Serializer } from './serializer'
 
-import { TimedSerializer, TimestampSigner } from './timed'
+import { TimestampSigner, TimedSerializer } from './timed'
+
 import { URLSafeSerializer, URLSafeTimedSerializer } from './url-safe'
 
-export default {
-  Serializer,
+export {
   Signer,
-  TimedSerializer,
   TimestampSigner,
+
+  Serializer,
   URLSafeSerializer,
+
+  TimedSerializer,
   URLSafeTimedSerializer,
 }

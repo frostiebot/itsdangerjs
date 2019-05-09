@@ -26,7 +26,7 @@ module.exports = {
     'no-multi-spaces': 2,
     'no-multiple-empty-lines': [2, { max: 2, maxEOF: 0, maxBOF: 0 }],
     'no-trailing-spaces': [2, { ignoreComments: true }],
-    'quotes': [2, 'single'],
+    'quotes': [2, 'single', { allowTemplateLiterals: true }],
     'semi': [2, 'never'],
   }
 };

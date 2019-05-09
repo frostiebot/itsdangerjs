@@ -1,52 +1,68 @@
-import {
-  createHmac,
-  timingSafeEqual,
-} from 'crypto'
+/**
+ * Base Signer class and factory
+ * 
+ * @module signer
+ */
 
-import {
-  base64urlencode,
-  base64urldecode,
-} from './encoding'
+import { KeyDerivations, HashAlgorithm, HmacAlgorithm } from './algorithms'
 
-class _HMACAlgorithm {
-  constructor(digestMethod = 'sha512') {
-    this.digestMethod = digestMethod
-  }
+import { base64AlphabetIncludes, URLSafeBase64Encode, URLSafeBase64Decode } from './encoding'
+import { BadSignature } from './error'
+import { rsplit } from './utils'
 
-  getSignature(key, value) {
-    const hmac = createHmac(this.digestMethod, key)
-    hmac.update(value)
-    return hmac.digest('binary')
-  }
+/**
+ * Signer Options
+ * @typedef {object} SignerOptions
+ * @property {string} [salt="itsdanger.Signer"] - Value to salt signature
+ * @property {string} [sep="."] - Signed value delimiter
+ * @property {string} [keyDerivation="django-concat"] - Method for deriving signing secret
+ * @property {string} [digestMethod="sha1"] - Any hash as listed in `crypto.getHashes`
+ * @property {function} [algorithm=HmacAlgorithm] - Algorithm function used to get and verify signatures
+ */
 
-  verifySignature(key, value, signature) {
-    return timingSafeEqual(Buffer.from(signature), Buffer.from(this.getSignature(key, value)))
-  }
-}
-
-const HMACAlgorithm = digestMethod => new _HMACAlgorithm(digestMethod)
-
-export class _Signer {
-  constructor(secretKey, { sep = '.', salt = 'itsdangerjs.Signer', digestMethod = 'sha512', algorithm }) {
+/**
+ * Base Signing class for subclassing
+ */
+export class BaseSigner {
+  /**
+   * 
+   * @param {string} secretKey
+   * @param {SigningOptions} options
+   */
+  constructor(secretKey, { salt = 'itsdanger.Signer', sep = '.', keyDerivation = KeyDerivations.DJANGO, digestMethod = 'sha1', algorithm } = {}) {
     this.secretKey = secretKey
-    this.sep = sep
     this.salt = salt
 
-    // this.keyDerivation = keyDerivation
+    this.sep = sep
+
+    if (base64AlphabetIncludes(this.sep)) {
+      throw new Error('The given separator cannot be used because it may be contained in the signature itself. Alphanumeric characters and `-_=` must not be used.')
+    }
+
+    this.keyDerivation = keyDerivation
     this.digestMethod = digestMethod
-    this.algorithm = algorithm || HMACAlgorithm(this.digestMethod)
+
+    this.algorithm = algorithm || HmacAlgorithm(this.digestMethod)
   }
 
   deriveKey() {
-    //TODO: See itsdangerous.Signer to see other key derivation methods
-    // As of right now, we'll just use HMAC
-    return HMACAlgorithm(this.digestMethod).getSignature(this.secretKey, this.salt)
+    if ([KeyDerivations.CONCAT, KeyDerivations.DJANGO].includes(this.keyDerivation)) {
+      return HashAlgorithm(this.digestMethod, this.keyDerivation).getSignature(this.secretKey, this.salt)
+    }
+
+    if (KeyDerivations.HMAC === this.keyDerivation) {
+      return HmacAlgorithm(this.digestMethod).getSignature(this.secretKey, this.salt)
+    }
+
+    if (KeyDerivations.NONE === this.keyDerivation) {
+      return this.secretKey
+    }
+
+    throw new Error('Unknown key derivation method')
   }
 
   getSignature(value) {
-    const key = this.deriveKey()
-    const signature = this.algorithm.getSignature(key, value)
-    return base64urlencode(signature)
+    return URLSafeBase64Encode(this.algorithm.getSignature(this.deriveKey(), value))
   }
 
   sign(value) {
@@ -54,27 +70,29 @@ export class _Signer {
   }
 
   verifySignature(value, signature) {
-    const key = this.deriveKey()
-    signature = base64urldecode(signature)
-    return this.algorithm.verifySignature(key, value, signature)
+    try {
+      return this.algorithm.verifySignature(this.deriveKey(), value, URLSafeBase64Decode(signature))
+    } catch (error) {
+      return false
+    }
   }
 
+  /**
+   * @todo signedValue.includes _must_ be a string - when base class works with objects, it is not
+   * @param {string} signedValue 
+   */
   unsign(signedValue) {
-    if (!signedValue.includes(this.sep))
-      throw new Error('No separator found in value')
-
-    // this should be rsplit(this.sep, 1) like python
-    let [value, timestamp, signature] = signedValue.split(this.sep)
-    if (value && timestamp && signature) {
-      value = `${value}${this.sep}${timestamp}`
-    } else {
-      signature = timestamp
+    if (!signedValue.includes(this.sep)) {
+      throw new BadSignature(`No '${this.sep}' found in value`)
     }
 
-    if (this.verifySignature(value, signature))
-      return value
+    const [ value, signature ] = rsplit(signedValue, this.sep)
 
-    throw new Error('Signature does not match')
+    if (this.verifySignature(value, signature)) {
+      return value
+    }
+
+    throw new BadSignature(`Signature '${signature}' does not match`, value)
   }
 
   validate(signedValue) {
@@ -87,4 +105,10 @@ export class _Signer {
   }
 }
 
-export const Signer = (secretKey, salt = 'itsdangerjs.Signer', sep = '.', digestMethod = 'sha512', algorithm) => new _Signer(secretKey, { salt, sep, digestMethod, algorithm })
+/**
+ * Factory function for creating new instances of `BaseSigner`
+ * @param {string} secretKey 
+ * @param {SignerOptions} [options]
+ * @return {BaseSigner}
+ */
+export const Signer = (secretKey, options = {}) => new BaseSigner(secretKey, options)

@@ -1,37 +1,70 @@
-// https://github.com/commenthol/url-safe-base64/blob/master/src/index.js
-// const ENCODED = { '+': '-', '/': '-', '=': '.' }
-// const DECODED = { '-': '+', '_': '/', '.': '=' }
+/**
+ * String/Number encoding/decoding utilities
+ * 
+ * The goal is for inputs to return values that are equivalent
+ * to their python counterparts in `itsdangerous`
+ */
 
-// export const encode = string => string.replace(/[+/=]/g, m => ENCODED[m])
-// export const decode = string => string.replace(/[-_.]/g, m => DECODED[m])
+import {
+  base64Encode,
+  base64Decode,
+  base64EncodeInt,
+  base64DecodeInt,
+} from './_base64'
 
-export const base64encode = (string = '') => Buffer.from(string).toString('base64')
+// import { BadData } from './error'
 
-export const base64decode = (string = '') => Buffer.from(string, 'base64').toString('utf8')
+const BASE64_LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+const BASE64_NUMBERS = '0123456789'
+const BASE64_SYMBOLS = '-_='
 
-export const base64urlencode = string => base64encode(string).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+const BASE64_ALPHABET = Buffer.from([
+  ...BASE64_LETTERS,
+  ...BASE64_NUMBERS,
+  ...BASE64_SYMBOLS,
+].join(''), 'ascii')
 
-export const base64urldecode = (string) => {
-  string = string.replace(/-/g, '+').replace(/_/g, '/')
-  while (string.length % 4)
-    string += '='
-  return base64decode(string)
-}
+const BASE64_SYMBOL_REPLACEMENTS = { '+': '-', '/': '_', '-': '+', '_': '/', '=': '' }
+const BASE64_TO_URL_SAFE_RE = /[+/=]/g
+const BASE64_FROM_URL_SAFE_RE = /[-_]/g
 
-export const base64encodeNumber = (number) => {
-  let hex = parseInt(number).toString(16)
-  if (hex.length % 2 === 1)
-    hex = '0' + hex
-  return Buffer.from(hex, 'hex').toString('base64')
-}
+const replaceSymbol = symbol => BASE64_SYMBOL_REPLACEMENTS[symbol]
+const replaceSymbols = regex => value => value.replace(regex, replaceSymbol)
 
-export const base64decodeNumber = string => parseInt(Buffer.from(string, 'base64').toString('hex'), 16)
+const makeURLSafe = replaceSymbols(BASE64_TO_URL_SAFE_RE)
+const makeURLUnsafe = replaceSymbols(BASE64_FROM_URL_SAFE_RE)
 
-export const base64urlencodeNumber = number => base64encodeNumber(number).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+/**
+ * Encodes a string (ascii or utf8) to a URL-safe ascii base64 string
+ * @param {string} value
+ * @return {string}
+ */
+export const URLSafeBase64Encode = value => makeURLSafe(base64Encode(value))
 
-export const base64urldecodeNumber = (string) => {
-  string = string = string.replace(/-/g, '+').replace(/_/g, '/')
-  while (string.length % 4)
-    string += '='
-  return base64decodeNumber(string)
-}
+/**
+ * Decodes a URL-safe ascii base64 string to a string (ascii or utf8)
+ * @param {string} value
+ * @return {string}
+ */
+export const URLSafeBase64Decode = value => base64Decode(makeURLUnsafe(value))
+
+/**
+ * Encodes a number to a URL-safe ascii base64 string
+ * @param {number} value
+ * @return {string}
+ */
+export const URLSafeBase64EncodeInt = value => makeURLSafe(base64EncodeInt(value))
+
+/**
+ * Decodes a URL-safe ascii base64 string to a number
+ * @param {string} value
+ * @return {number}
+ */
+export const URLSafeBase64DecodeInt = value => base64DecodeInt(makeURLUnsafe(value))
+
+/**
+ * Checks if `byte` is present within the standard ascii-encoded base64 'alphabet'
+ * @param {Buffer} byte
+ * @return {boolean}
+ */
+export const base64AlphabetIncludes = byte => BASE64_ALPHABET.includes(byte)

@@ -1,9 +1,5 @@
-'use strict';
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-var crypto = require('crypto');
-var util = require('util');
+import { getHashes, createHash, createHmac, timingSafeEqual } from 'crypto';
+import { TextEncoder, TextDecoder } from 'util';
 
 /**
  * Algorithms for signing and comparing values with signatures
@@ -12,7 +8,7 @@ var util = require('util');
  * 
  * @module algorithms
  */
-const HASHES = crypto.getHashes();
+const HASHES = getHashes();
 const KeyDerivations = {
   CONCAT: 'concat',
   DJANGO: 'django-concat',
@@ -48,7 +44,7 @@ class SigningAlgorithm {
 
 
   verifySignature(key, value, signature) {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(this.getSignature(key, value)));
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(this.getSignature(key, value)));
   }
 
 }
@@ -72,7 +68,7 @@ class HashSigningAlgorithm extends SigningAlgorithm {
 
   getSignature(key, value) {
     const keyValue = createKeyDerivation(this.keyDerivation, key, value);
-    return crypto.createHash(this.digestMethod).update(keyValue).digest('binary');
+    return createHash(this.digestMethod).update(keyValue).digest('binary');
   }
 
 }
@@ -102,7 +98,7 @@ class HmacSigningAlgorithm extends SigningAlgorithm {
   }
 
   getSignature(key, value) {
-    return crypto.createHmac(this.digestMethod, key).update(value).digest('binary');
+    return createHmac(this.digestMethod, key).update(value).digest('binary');
   }
 
 }
@@ -138,9 +134,9 @@ const btoa = value => (value instanceof Buffer && value || Buffer.from(value.toS
 
 const u_btoa = buffer => btoa(new Uint8Array(buffer).reduce((arr, byte) => [...arr, String.fromCharCode(byte)], []).join(''));
 
-const encodeStr = value => new util.TextEncoder().encode(value);
+const encodeStr = value => new TextEncoder().encode(value);
 
-const decodeStr = value => new util.TextDecoder().decode(value);
+const decodeStr = value => new TextDecoder().decode(value);
 /** Encodes a string (ascii or utf8) to an ascii base64 string */
 
 
@@ -738,9 +734,4 @@ const URLSafeTimedSerializer = function (secretKey, options = {}) {
   return new BaseURLSafeTimedSerializer(secretKey, options);
 };
 
-exports.Serializer = Serializer;
-exports.Signer = Signer;
-exports.TimedSerializer = TimedSerializer;
-exports.TimestampSigner = TimestampSigner;
-exports.URLSafeSerializer = URLSafeSerializer;
-exports.URLSafeTimedSerializer = URLSafeTimedSerializer;
+export { Serializer, Signer, TimedSerializer, TimestampSigner, URLSafeSerializer, URLSafeTimedSerializer };
