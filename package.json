@@ -1,7 +1,6 @@
 {
-  "name": "itsdangerjs",
+  "name": "@constemi/itsdangerjs",
   "version": "0.0.1",
-  "author": "Chris Ashurst <chris@telestatic.net>",
   "license": "Unlicense",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
