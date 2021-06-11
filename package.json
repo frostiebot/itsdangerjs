@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/frostiebot/itsdangerjs.git"
+    "url": "git+https://github.com/constemi/itsdangerjs.git"
   },
   "dependencies": {},
   "devDependencies": {
