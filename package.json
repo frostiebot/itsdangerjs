@@ -1,6 +1,6 @@
 {
   "name": "@constemi/itsdangerjs",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "Unlicense",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -19,30 +19,29 @@
     "test": "jest -c ./jest.config.js --colors --runInBand",
     "lint": "eslint src/"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/constemi/itsdangerjs.git"
-  },
+  "repository": "git+https://github.com/constemi/itsdangerjs.git",
   "dependencies": {},
   "devDependencies": {
-    "@babel/cli": "^7.2.3",
-    "@babel/core": "^7.3.4",
-    "@babel/plugin-proposal-class-properties": "^7.3.4",
-    "@babel/preset-env": "^7.3.4",
+    "@babel/cli": "^7.14.5",
+    "@babel/core": "^7.14.6",
+    "@babel/plugin-proposal-class-properties": "^7.14.5",
+    "@babel/preset-env": "^7.14.5",
     "babel-core": "7.0.0-bridge.0",
-    "babel-eslint": "^10.0.1",
-    "babel-jest": "^24.3.1",
-    "babel-plugin-module-resolver": "^3.2.0",
-    "eslint": "^5.15.1",
-    "eslint-import-resolver-babel-module": "^5.0.1",
-    "eslint-plugin-import": "^2.16.0",
-    "jest": "^24.3.1",
+    "babel-eslint": "^10.1.0",
+    "babel-jest": "^27.0.2",
+    "babel-plugin-module-resolver": "^4.1.0",
+    "eslint": "^7.29.0",
+    "eslint-import-resolver-babel-module": "^5.3.1",
+    "eslint-plugin-import": "^2.23.4",
+    "jest": "^27.0.4",
     "npm-run-all": "^4.1.5",
-    "rimraf": "^2.6.3",
-    "rollup": "^1.11.0",
-    "rollup-plugin-babel": "^4.3.2",
-    "rollup-plugin-commonjs": "^9.3.4",
-    "rollup-plugin-filesize": "^6.0.1",
-    "rollup-plugin-node-resolve": "^4.2.3"
-  }
+    "rimraf": "^3.0.2",
+    "rollup": "^2.52.1",
+    "rollup-plugin-babel": "^4.4.0",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-filesize": "^9.1.1",
+    "rollup-plugin-node-resolve": "^5.2.0"
+  },
+  "author": "rob <digitalwave@protonmail.ch>",
+  "private": false
 }
